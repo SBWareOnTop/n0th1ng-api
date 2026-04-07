@@ -1,5 +1,8 @@
 const express = require('express');
 const Database = require('better-sqlite3');
+const fs = require('fs');
+const path = require('path');
+const https = require('https');
 
 const app = express();
 
@@ -27,17 +30,64 @@ app.use((req, res, next) => {
 
 app.use(express.json());
 
-const db = new Database('cleaned.db', { readonly: true });
+const DB_FILE = path.join(__dirname, 'cleaned.db');
+const FILE_ID = '1h0PKaccZnwnhW0lSy60f0O1eZ5HLEXuF';
+const DB_URL = `https://drive.google.com/uc?export=download&id=${FILE_ID}`;
+
+let db;
 const TABLE_NAME = 'contacts';
+let existingColumns = new Set();
+
+function downloadFile(url, dest) {
+  return new Promise((resolve, reject) => {
+    const file = fs.createWriteStream(dest);
+
+    https.get(url, (response) => {
+      // Gère les redirections éventuelles
+      if (
+        response.statusCode >= 300 &&
+        response.statusCode < 400 &&
+        response.headers.location
+      ) {
+        file.close();
+        fs.unlink(dest, () => {});
+        return resolve(downloadFile(response.headers.location, dest));
+      }
+
+      if (response.statusCode !== 200) {
+        file.close();
+        fs.unlink(dest, () => {});
+        return reject(new Error(`Download failed with status ${response.statusCode}`));
+      }
+
+      response.pipe(file);
+
+      file.on('finish', () => {
+        file.close(resolve);
+      });
+    }).on('error', (err) => {
+      file.close();
+      fs.unlink(dest, () => {});
+      reject(err);
+    });
+  });
+}
+
+async function ensureDatabase() {
+  if (fs.existsSync(DB_FILE)) {
+    console.log('DB déjà présente');
+    return;
+  }
+
+  console.log('Téléchargement de cleaned.db depuis Google Drive...');
+  await downloadFile(DB_URL, DB_FILE);
+  console.log('Téléchargement terminé');
+}
 
 function getExistingColumns() {
   const rows = db.prepare(`PRAGMA table_info(${TABLE_NAME})`).all();
   return new Set(rows.map(row => row.name));
 }
-
-const existingColumns = getExistingColumns();
-
-console.log('COLONNES DISPONIBLES:', [...existingColumns]);
 
 app.get('/', (req, res) => {
   res.send('Search API is running');
@@ -57,8 +107,6 @@ app.post('/search', (req, res) => {
       code_postal = '',
       ville = ''
     } = req.body;
-
-    console.log('BODY RECU:', req.body);
 
     const currentPage = Math.max(parseInt(page, 10) || 1, 1);
     const perPage = 20;
@@ -149,8 +197,6 @@ app.post('/search', (req, res) => {
       LIMIT @limit OFFSET @offset
     `;
 
-    console.log('PARAMS:', params);
-
     const totalRow = db.prepare(countQuery).get(params);
     const total = totalRow ? totalRow.total : 0;
     const totalPages = Math.max(Math.ceil(total / perPage), 1);
@@ -160,8 +206,6 @@ app.post('/search', (req, res) => {
       limit: perPage,
       offset
     });
-
-    console.log('RESULTATS:', results.length);
 
     res.json({
       results,
@@ -174,8 +218,23 @@ app.post('/search', (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3000;
+async function startServer() {
+  try {
+    await ensureDatabase();
 
-app.listen(PORT, () => {
-  console.log(`Serveur lancé sur le port ${PORT}`);
-});
+    db = new Database(DB_FILE, { readonly: true });
+    existingColumns = getExistingColumns();
+
+    console.log('COLONNES DISPONIBLES:', [...existingColumns]);
+
+    const PORT = process.env.PORT || 3000;
+    app.listen(PORT, () => {
+      console.log(`Serveur lancé sur le port ${PORT}`);
+    });
+  } catch (error) {
+    console.error('Erreur au démarrage:', error);
+    process.exit(1);
+  }
+}
+
+startServer();
