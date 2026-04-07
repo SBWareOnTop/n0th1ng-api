@@ -32,7 +32,7 @@ app.use(express.json());
 
 const DB_FILE = path.join(__dirname, 'cleaned.db');
 const FILE_ID = '1h0PKaccZnwnhW0lSy60f0O1eZ5HLEXuF';
-const DB_URL = `https://drive.google.com/uc?export=download&id=${FILE_ID}`;
+const DB_URL = `https://pixeldrain.com/api/file/PvzEArws`;
 
 let db;
 const TABLE_NAME = 'contacts';
