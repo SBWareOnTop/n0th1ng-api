@@ -148,57 +148,57 @@ app.post('/search', (req, res) => {
     const params = {};
 
     if (nom.trim() && existingColumns.has('nom')) {
-      conditions.push('nom LIKE @nom');
-      params.nom = `${nom.trim()}%`;
-    }
+  conditions.push('nom LIKE @nom');
+  params.nom = `${nom.trim()}%`;
+}
 
-    if (prenom.trim() && existingColumns.has('prenom')) {
-      conditions.push('prenom LIKE @prenom');
-      params.prenom = `${prenom.trim()}%`;
-    }
+if (prenom.trim() && existingColumns.has('prenom')) {
+  conditions.push('prenom LIKE @prenom');
+  params.prenom = `${prenom.trim()}%`;
+}
 
-    if (date_naissance.trim() && existingColumns.has('date_naissance')) {
-      conditions.push('date_naissance LIKE @date_naissance');
-      params.date_naissance = `%${date_naissance.trim()}%`;
-    }
+if (date_naissance.trim() && existingColumns.has('date_naissance')) {
+  conditions.push('date_naissance LIKE @date_naissance');
+  params.date_naissance = `${date_naissance.trim()}%`;
+}
 
-    if (annee_naissance.trim() && existingColumns.has('annee_naissance')) {
-      conditions.push('annee_naissance LIKE @annee_naissance');
-      params.annee_naissance = `%${annee_naissance.trim()}%`;
-    }
+if (annee_naissance.trim() && existingColumns.has('annee_naissance')) {
+  conditions.push('annee_naissance LIKE @annee_naissance');
+  params.annee_naissance = `${annee_naissance.trim()}%`;
+}
 
-    if (telephone.trim() && existingColumns.has('telephone')) {
-      conditions.push('telephone LIKE @telephone');
-      params.telephone = `%${telephone.trim()}%`;
-    }
+if (telephone.trim() && existingColumns.has('telephone')) {
+  conditions.push('telephone LIKE @telephone');
+  params.telephone = `${telephone.trim()}%`;
+}
 
-    if (email.trim() && existingColumns.has('email')) {
-      conditions.push('email LIKE @email');
-      params.email = `${email.trim()}%`;
-    }
+if (email.trim() && existingColumns.has('email')) {
+  conditions.push('email LIKE @email');
+  params.email = `${email.trim()}%`;
+}
 
-    if (adresse.trim() && existingColumns.has('adresse')) {
-      conditions.push('adresse LIKE @adresse');
-      params.adresse = `%${adresse.trim()}%`;
-    }
+if (adresse.trim() && existingColumns.has('adresse')) {
+  conditions.push('adresse LIKE @adresse');
+  params.adresse = `${adresse.trim()}%`;
+}
 
-    if (code_postal.trim() && existingColumns.has('code_postal')) {
-      conditions.push('code_postal LIKE @code_postal');
-      params.code_postal = `${code_postal.trim()}%`;
-    }
+if (code_postal.trim() && existingColumns.has('code_postal')) {
+  conditions.push('code_postal LIKE @code_postal');
+  params.code_postal = `${code_postal.trim()}%`;
+}
 
-    if (ville.trim() && existingColumns.has('ville')) {
-      conditions.push('ville LIKE @ville');
-      params.ville = `${ville.trim()}%`;
-    }
+if (ville.trim() && existingColumns.has('ville')) {
+  conditions.push('ville LIKE @ville');
+  params.ville = `${ville.trim()}%`;
+}
 
-    if (!conditions.length) {
-      return res.json({
-        results: [],
-        currentPage: 1,
-        totalPages: 1
-      });
-    }
+if (!conditions.length) {
+  return res.json({
+    results: [],
+    currentPage: 1,
+    totalPages: 1
+  });
+}
 
     const whereClause = `WHERE ${conditions.join(' AND ')}`;
 
