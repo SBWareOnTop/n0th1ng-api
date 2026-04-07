@@ -124,6 +124,8 @@ app.get('/', (req, res) => {
 });
 
 app.post('/search', (req, res) => {
+  const startedAt = Date.now();
+
   try {
     const {
       page = 1,
@@ -139,7 +141,7 @@ app.post('/search', (req, res) => {
     } = req.body;
 
     const currentPage = Math.max(parseInt(page, 10) || 1, 1);
-    const perPage = 20;
+    const perPage = 10;
     const offset = (currentPage - 1) * perPage;
 
     const conditions = [];
@@ -147,12 +149,12 @@ app.post('/search', (req, res) => {
 
     if (nom.trim() && existingColumns.has('nom')) {
       conditions.push('nom LIKE @nom');
-      params.nom = `%${nom.trim()}%`;
+      params.nom = `${nom.trim()}%`;
     }
 
     if (prenom.trim() && existingColumns.has('prenom')) {
       conditions.push('prenom LIKE @prenom');
-      params.prenom = `%${prenom.trim()}%`;
+      params.prenom = `${prenom.trim()}%`;
     }
 
     if (date_naissance.trim() && existingColumns.has('date_naissance')) {
@@ -172,7 +174,7 @@ app.post('/search', (req, res) => {
 
     if (email.trim() && existingColumns.has('email')) {
       conditions.push('email LIKE @email');
-      params.email = `%${email.trim()}%`;
+      params.email = `${email.trim()}%`;
     }
 
     if (adresse.trim() && existingColumns.has('adresse')) {
@@ -182,12 +184,12 @@ app.post('/search', (req, res) => {
 
     if (code_postal.trim() && existingColumns.has('code_postal')) {
       conditions.push('code_postal LIKE @code_postal');
-      params.code_postal = `%${code_postal.trim()}%`;
+      params.code_postal = `${code_postal.trim()}%`;
     }
 
     if (ville.trim() && existingColumns.has('ville')) {
       conditions.push('ville LIKE @ville');
-      params.ville = `%${ville.trim()}%`;
+      params.ville = `${ville.trim()}%`;
     }
 
     if (!conditions.length) {
@@ -214,12 +216,6 @@ app.post('/search', (req, res) => {
 
     const selectClause = selectableColumns.length ? selectableColumns.join(', ') : '*';
 
-    const countQuery = `
-      SELECT COUNT(*) as total
-      FROM ${TABLE_NAME}
-      ${whereClause}
-    `;
-
     const dataQuery = `
       SELECT ${selectClause}
       FROM ${TABLE_NAME}
@@ -227,20 +223,20 @@ app.post('/search', (req, res) => {
       LIMIT @limit OFFSET @offset
     `;
 
-    const totalRow = db.prepare(countQuery).get(params);
-    const total = totalRow ? totalRow.total : 0;
-    const totalPages = Math.max(Math.ceil(total / perPage), 1);
-
     const results = db.prepare(dataQuery).all({
       ...params,
       limit: perPage,
       offset
     });
 
+    const hasNextPage = results.length === perPage;
+
+    console.log(`SEARCH TIME: ${Date.now() - startedAt}ms | RESULTS: ${results.length}`);
+
     res.json({
       results,
       currentPage,
-      totalPages
+      totalPages: hasNextPage ? currentPage + 1 : currentPage
     });
   } catch (error) {
     console.error('ERREUR SEARCH:', error);
