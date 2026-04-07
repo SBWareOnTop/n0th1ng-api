@@ -31,8 +31,7 @@ app.use((req, res, next) => {
 app.use(express.json());
 
 const DB_FILE = path.join(__dirname, 'cleaned.db');
-const FILE_ID = '1h0PKaccZnwnhW0lSy60f0O1eZ5HLEXuF';
-const DB_URL = `https://pixeldrain.com/api/file/PvzEArws`;
+const DB_URL = 'https://pixeldrain.com/api/file/PvzEArws';
 
 let db;
 const TABLE_NAME = 'contacts';
@@ -43,7 +42,6 @@ function downloadFile(url, dest) {
     const file = fs.createWriteStream(dest);
 
     https.get(url, (response) => {
-      // Gère les redirections éventuelles
       if (
         response.statusCode >= 300 &&
         response.statusCode < 400 &&
@@ -65,6 +63,12 @@ function downloadFile(url, dest) {
       file.on('finish', () => {
         file.close(resolve);
       });
+
+      file.on('error', (err) => {
+        file.close();
+        fs.unlink(dest, () => {});
+        reject(err);
+      });
     }).on('error', (err) => {
       file.close();
       fs.unlink(dest, () => {});
@@ -73,20 +77,46 @@ function downloadFile(url, dest) {
   });
 }
 
+function isValidSQLiteFile(filePath) {
+  try {
+    if (!fs.existsSync(filePath)) return false;
+    const fd = fs.openSync(filePath, 'r');
+    const buffer = Buffer.alloc(16);
+    fs.readSync(fd, buffer, 0, 16, 0);
+    fs.closeSync(fd);
+
+    const header = buffer.toString('utf8');
+    return header === 'SQLite format 3\u0000';
+  } catch (error) {
+    return false;
+  }
+}
+
 async function ensureDatabase() {
-  if (fs.existsSync(DB_FILE)) {
-    console.log('DB déjà présente');
+  if (fs.existsSync(DB_FILE) && isValidSQLiteFile(DB_FILE)) {
+    console.log('DB déjà présente et valide');
     return;
   }
 
-  console.log('Téléchargement de cleaned.db depuis Google Drive...');
+  if (fs.existsSync(DB_FILE)) {
+    console.log('DB présente mais invalide, suppression...');
+    fs.unlinkSync(DB_FILE);
+  }
+
+  console.log('Téléchargement de cleaned.db depuis Pixeldrain...');
   await downloadFile(DB_URL, DB_FILE);
   console.log('Téléchargement terminé');
+
+  if (!isValidSQLiteFile(DB_FILE)) {
+    throw new Error('Le fichier téléchargé n’est pas une vraie base SQLite');
+  }
+
+  console.log('DB SQLite validée');
 }
 
 function getExistingColumns() {
   const rows = db.prepare(`PRAGMA table_info(${TABLE_NAME})`).all();
-  return new Set(rows.map(row => row.name));
+  return new Set(rows.map((row) => row.name));
 }
 
 app.get('/', (req, res) => {
@@ -180,7 +210,7 @@ app.post('/search', (req, res) => {
       'adresse',
       'code_postal',
       'ville'
-    ].filter(col => existingColumns.has(col));
+    ].filter((col) => existingColumns.has(col));
 
     const selectClause = selectableColumns.length ? selectableColumns.join(', ') : '*';
 
@@ -228,6 +258,7 @@ async function startServer() {
     console.log('COLONNES DISPONIBLES:', [...existingColumns]);
 
     const PORT = process.env.PORT || 3000;
+
     app.listen(PORT, () => {
       console.log(`Serveur lancé sur le port ${PORT}`);
     });
